@@ -66,15 +66,23 @@ typedef struct pgEventTimer {
 /* Pointer to head of timers linked list */
 static pgEventTimer *pg_event_timer = NULL;
 
+/* Timer ID incrementer */
+static intptr_t pg_timer_id = 0;
+
+#ifdef __EMSCRIPTEN__
+/* emscripten does not allow multithreading for now and SDL_CreateMutex fails.
+ * Don't bother with mutexes on emscripten for now. Mutex macros are no-ops */
+#define PG_LOCK_TIMER_MUTEX
+#define PG_UNLOCK_TIMER_MUTEX
+
+#else /* not on emscripten */
+
 /* SDL mutex to be held during access to above pointer.
  * This mutex is intentionally immortalised (never freed during the entire
  * duration of the program) because its cleanup can be messy with multiple
  * threads trying to use it. Since it's a singleton we don't need to worry
  * about memory leaks */
 static SDL_mutex *pg_timer_mutex = NULL;
-
-/* Timer ID incrementer */
-static intptr_t pg_timer_id = 0;
 
 /* these macros are intended for use where python exceptions cannot be raised
  * easily */
@@ -101,6 +109,8 @@ static intptr_t pg_timer_id = 0;
             PG_EXIT(1);                                                    \
         }                                                                  \
     }
+
+#endif /* not on emscripten */
 
 /* Free a timer instance from linked list. Needs timer mutex held for data
  * safety. This function call does not need GIL held, but can conditionally
@@ -171,11 +181,7 @@ pg_time_autoquit(PyObject *self, PyObject *_null)
 static PyObject *
 pg_time_autoinit(PyObject *self, PyObject *_null)
 {
-#if defined(__EMSCRIPTEN__)
-    puts(__FILE__
-         ":71+308 TODO: SDL_CreateMutex() is invalid on __EMSCRIPTEN__ sdl2 "
-         "port");
-#else
+#ifndef __EMSCRIPTEN__
     /* allocate a mutex for timer data holding struct */
     if (!pg_timer_mutex) {
         pg_timer_mutex = SDL_CreateMutex();
@@ -425,20 +431,22 @@ time_set_timer(PyObject *self, PyObject *args, PyObject *kwargs)
                      "first argument must be an event type or event object");
     }
 
-#if !defined(__EMSCRIPTEN__)
+#ifndef __EMSCRIPTEN__
     if (!pg_timer_mutex) {
         return RAISE(pgExc_SDLError, "pygame is not initialized");
     }
-#endif
+#endif /* not on emscripten */
 
     /* release GIL because python GIL and pg_timer_mutex should not
      * deadlock waiting for each other */
     Py_BEGIN_ALLOW_THREADS;
 
+#ifndef __EMSCRIPTEN__
     if (SDL_LockMutex(pg_timer_mutex) < 0) {
         ecode = PG_TIMER_SDL_ERROR;
         goto end_no_mutex;
     }
+#endif /* not on emscripten */
 
     /* get and clear original timer, if it exists */
     _pg_clear_event_timer_type(ev_type);
@@ -467,9 +475,11 @@ time_set_timer(PyObject *self, PyObject *args, PyObject *kwargs)
     }
 
 end:
+#ifndef __EMSCRIPTEN__
     if (SDL_UnlockMutex(pg_timer_mutex)) {
         ecode = PG_TIMER_SDL_ERROR;
     }
+#endif /* not on emscripten */
 
 end_no_mutex:
     Py_END_ALLOW_THREADS;
