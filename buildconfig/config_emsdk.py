@@ -176,12 +176,6 @@ def main(auto_config=False):
         Dependency('FREETYPE', 'ft2build.h', 'libfreetype.a', []),
         #Dependency('GFX', 'SDL_gfxPrimitives.h', 'libSDL2_gfx.a', ['SDL2_gfx']),
     ]
-    DEPS.extend([
-        Dependency('PNG', 'png.h', 'libpng', ['png']),
-        Dependency('JPEG', 'jpeglib.h', 'libjpeg', ['jpeg']),
-        #Dependency('SCRAP', '', 'libX11', ['X11']),
-        #Dependency('GFX', 'SDL_gfxPrimitives.h', 'libSDL_gfx.a', ['SDL_gfx']),
-    ])
 
     if not DEPS[0].found:
         raise RuntimeError('Unable to run "sdl-config". Please make sure a development version of SDL is installed.')
