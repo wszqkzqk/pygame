@@ -479,13 +479,16 @@ def main(auto_config=False):
     except ImportError:
         import download_msys2_prebuilt
 
-    download_kwargs = {
-        'x86': False,
-        'x64': False,
-    }
-    download_kwargs[machine_type] = True
+    if "mingw_arch" in os.environ:
+        mingw_arch = os.environ["mingw_arch"]
+    elif machine_type == "x86":
+        mingw_arch = "mingw32"
+    else:
+        mingw_arch = "mingw64"
+    print("The MSYS2 environment is now set to \"{}\"".format(mingw_arch))
+
     if download_prebuilt:
-        download_msys2_prebuilt.update(**download_kwargs)
+        download_msys2_prebuilt.update(mingw_arch)
 
     # MSYS2 config only supports setup with prebuilt dependencies
     # The prebuilt dir is the MinGW root from the MSYS2
@@ -493,11 +496,7 @@ def main(auto_config=False):
     # binary, this Python has no notion of MSYS2 or MinGW paths, so
     # we convert the prebuilt dir to a Windows absolute path.
     # e.g. /mingw64 (MSYS2)  ->  C:/msys64/mingw64 (Windows)
-    prebuilt_msys_dir = {
-        'x86': '/mingw32',
-        'x64': '/mingw64'
-    }
-    prebuilt_dir = get_absolute_win_path(prebuilt_msys_dir[machine_type])
+    prebuilt_dir = get_absolute_win_path(f"/{mingw_arch}")
     return setup_prebuilt_sdl2(prebuilt_dir)
 
 

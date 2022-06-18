@@ -1,6 +1,15 @@
+import os
+import sys
 import logging
 import subprocess
 
+MINGW_PREFIX_DICT = {
+        "mingw64":"mingw-w64-x86_64",
+        "mingw32":"mingw-w64-i686",
+        "ucrt64":"mingw-w64-ucrt-x86_64",
+        "clang64":"mingw-w64-clang-x86_64",
+        "clang32":"mingw-w64-clang-i686",
+    }
 
 def install_pacman_package(pkg_name):
     """ This installs a package in the current MSYS2 environment
@@ -18,42 +27,38 @@ def install_pacman_package(pkg_name):
     return output.returncode != 0
 
 
-def get_packages(x86=True, x64=True):
+def get_packages(mingw_arch):
     deps = [
-        'mingw-w64-{}-SDL2',
-        'mingw-w64-{}-SDL2_ttf',
-        'mingw-w64-{}-SDL2_image',
-        'mingw-w64-{}-SDL2_mixer',
-        'mingw-w64-{}-portmidi',
-        'mingw-w64-{}-libpng',
-        'mingw-w64-{}-libjpeg-turbo',
-        'mingw-w64-{}-libtiff',
-        'mingw-w64-{}-zlib',
-        'mingw-w64-{}-libwebp',
-        'mingw-w64-{}-libvorbis',
-        'mingw-w64-{}-libogg',
-        'mingw-w64-{}-flac',
-        'mingw-w64-{}-libmodplug',
-        'mingw-w64-{}-mpg123',
-        'mingw-w64-{}-opus',
-        'mingw-w64-{}-opusfile',
-        'mingw-w64-{}-freetype'
+        '{}-SDL2',
+        '{}-SDL2_ttf',
+        '{}-SDL2_image',
+        '{}-SDL2_mixer',
+        '{}-portmidi',
+        '{}-libpng',
+        '{}-libjpeg-turbo',
+        '{}-libtiff',
+        '{}-zlib',
+        '{}-libwebp',
+        '{}-libvorbis',
+        '{}-libogg',
+        '{}-flac',
+        '{}-libmodplug',
+        '{}-mpg123',
+        '{}-opus',
+        '{}-opusfile',
+        '{}-freetype'
     ]
 
-    packages = []
-    if x86:
-        packages.extend([x.format('i686') for x in deps])
-    if x64:
-        packages.extend([x.format('x86_64') for x in deps])
+    packages = [x.format(MINGW_PREFIX_DICT[mingw_arch]) for x in deps]
     return packages
 
 
-def install_prebuilts(x86=True, x64=True):
+def install_prebuilts(mingw_arch):
     """ For installing prebuilt dependencies.
     """
     errors = False
     print("Installing pre-built dependencies")
-    for pkg in get_packages(x86=x86, x64=x64):
+    for pkg in get_packages(mingw_arch):
         print(f"Installing {pkg}")
         error = install_pacman_package(pkg)
         errors = errors or error
@@ -61,8 +66,18 @@ def install_prebuilts(x86=True, x64=True):
         raise Exception("Some dependencies could not be installed")
 
 
-def update(x86=True, x64=True):
-    install_prebuilts(x86=x86, x64=x64)
+def update(mingw_arch=None):
+    if not mingw_arch:
+        # Set fallback MSYS2 environment
+        if "mingw_arch" not in os.environ:
+            if sys.maxsize > 2**32:
+                mingw_arch = "mingw64"
+            else:
+                mingw_arch = "mingw32"
+        else:
+            mingw_arch = os.environ["mingw_arch"]
+    print("The MSYS2 environment is now set to \"{}\"".format(mingw_arch))
+    install_prebuilts(mingw_arch)
 
 
 if __name__ == '__main__':

@@ -8,6 +8,9 @@
 
 import io
 import platform
+import sysconfig
+
+from buildconfig.config import is_msys2
 
 with open('README.rst', encoding='utf-8') as readme:
     LONG_DESCRIPTION = readme.read()
@@ -433,7 +436,7 @@ for e in extensions:
     e.extra_compile_args.extend(
         # some warnings are skipped here
         ("/W3", "/wd4142", "/wd4996")
-        if sys.platform == "win32"
+        if (sys.platform == "win32" and (not is_msys2()))
         else ("-Wall", "-Wno-error=unknown-pragmas")
     )
 
@@ -445,7 +448,7 @@ for e in extensions:
         # TODO: fix freetype issues here
         e.extra_compile_args.append("-Wno-error=unused-but-set-variable")
 
-    if "mask" in e.name and sys.platform == "win32":
+    if "mask" in e.name and sys.platform == "win32" and (not is_msys2()):
         # skip analyze warnings that pop up a lot in mask for now. TODO fix
         e.extra_compile_args.extend(("/wd6385", "/wd6386"))
 
@@ -455,7 +458,7 @@ for e in extensions:
             and e.name not in ("pypm", "_sprite", "gfxdraw")
     ):
         # Do -Werror only on CI, and exclude -Werror on Cython C files and gfxdraw
-        e.extra_compile_args.append("/WX" if sys.platform == "win32" else "-Werror")
+        e.extra_compile_args.append("/WX" if (sys.platform == "win32" and (not is_msys2())) else "-Werror")
 
 # if not building font, try replacing with ftfont
 alternate_font = os.path.join('src_py', 'font.py')
@@ -727,7 +730,7 @@ if sys.platform == 'win32' and not 'WIN32_DO_NOT_INCLUDE_DEPS' in os.environ:
 
 
     # Only on win32, not MSYS2
-    if 'MSYSTEM' not in os.environ:
+    if not sysconfig.get_platform().startswith("mingw"):
         @add_command('build_ext')
         class WinBuildExt(build_ext):
             """This build_ext sets necessary environment variables for MinGW"""
